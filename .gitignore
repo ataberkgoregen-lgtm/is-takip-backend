@@ -1,0 +1,22 @@
+# Bağımlılıklar (Asla yüklenmemeli)
+node_modules/
+dist/
+build/
+
+# Veritabanı ve Loglar
+*.sqlite
+*.sqlite3
+*.db
+*.log
+npm-debug.log*
+
+# Gizli Bilgiler (API Anahtarları, Şifreler)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Sistem Dosyaları
+.DS_Store
+Thumbs.db
