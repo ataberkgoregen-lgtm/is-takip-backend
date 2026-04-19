@@ -1,11 +1,11 @@
 const express = require("express");
 const router = express.Router();
-const db = require("../db");
+const Application = require("../Application");
 
 // Tüm başvuruları getir
-router.get("/", (req, res) => {
+router.get("/", async (req, res) => {
   try {
-    const applications = db.prepare("SELECT * FROM applications ORDER BY created_at DESC").all();
+    const applications = await Application.find().sort({ created_at: -1 });
     res.json(applications);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -13,28 +13,26 @@ router.get("/", (req, res) => {
 });
 
 // Yeni başvuru ekle
-router.post("/", (req, res) => {
-  const { company, position, location, salary, job_url, applied_at, status } = req.body;
+router.post("/", async (req, res) => {
+  const { company, position, location, salary, job_url, applied_at, status } =
+    req.body;
 
   if (!company || !position || !applied_at) {
-    return res.status(400).json({ error: "Şirket, pozisyon ve başvuru tarihi zorunludur." });
+    return res
+      .status(400)
+      .json({ error: "Şirket, pozisyon ve başvuru tarihi zorunludur." });
   }
 
   try {
-    const stmt = db.prepare(`
-      INSERT INTO applications (company, position, location, salary, job_url, applied_at, status)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `);
-    const result = stmt.run(
+    const newApp = await Application.create({
       company,
       position,
-      location || "",
-      salary || "",
-      job_url || "",
+      location: location || "",
+      salary: salary || "",
+      job_url: job_url || "",
       applied_at,
-      status || "Beklemede"
-    );
-    const newApp = db.prepare("SELECT * FROM applications WHERE id = ?").get(result.lastInsertRowid);
+      status: status || "Beklemede",
+    });
     res.status(201).json(newApp);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -42,29 +40,41 @@ router.post("/", (req, res) => {
 });
 
 // Başvuruyu güncelle
-router.put("/:id", (req, res) => {
+router.put("/:id", async (req, res) => {
   const { id } = req.params;
-  const { company, position, location, salary, job_url, applied_at, status, response_type, response_note } = req.body;
+  const {
+    company,
+    position,
+    location,
+    salary,
+    job_url,
+    applied_at,
+    status,
+    response_type,
+    response_note,
+  } = req.body;
 
   try {
-    const stmt = db.prepare(`
-      UPDATE applications
-      SET company = ?, position = ?, location = ?, salary = ?, job_url = ?,
-          applied_at = ?, status = ?, response_type = ?, response_note = ?,
-          updated_at = CURRENT_TIMESTAMP
-      WHERE id = ?
-    `);
-    const result = stmt.run(
-      company, position, location || "", salary || "", job_url || "",
-      applied_at, status, response_type || null, response_note || null,
-      id
+    const updated = await Application.findByIdAndUpdate(
+      id,
+      {
+        company,
+        position,
+        location: location || "",
+        salary: salary || "",
+        job_url: job_url || "",
+        applied_at,
+        status,
+        response_type: response_type || null,
+        response_note: response_note || null,
+      },
+      { new: true, runValidators: true },
     );
 
-    if (result.changes === 0) {
+    if (!updated) {
       return res.status(404).json({ error: "Başvuru bulunamadı." });
     }
 
-    const updated = db.prepare("SELECT * FROM applications WHERE id = ?").get(id);
     res.json(updated);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -72,11 +82,11 @@ router.put("/:id", (req, res) => {
 });
 
 // Başvuruyu sil
-router.delete("/:id", (req, res) => {
+router.delete("/:id", async (req, res) => {
   const { id } = req.params;
   try {
-    const result = db.prepare("DELETE FROM applications WHERE id = ?").run(id);
-    if (result.changes === 0) {
+    const deleted = await Application.findByIdAndDelete(id);
+    if (!deleted) {
       return res.status(404).json({ error: "Başvuru bulunamadı." });
     }
     res.json({ message: "Başvuru silindi." });
