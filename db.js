@@ -1,23 +1,13 @@
-const Database = require("better-sqlite3");
-const path = require("path");
+const mongoose = require("mongoose");
 
-const db = new Database(path.join(__dirname, "jobs.db"));
+const connectDB = async () => {
+  try {
+    await mongoose.connect(process.env.MONGODB_URI);
+    console.log("MongoDB bağlantısı başarılı.");
+  } catch (err) {
+    console.error("MongoDB bağlantı hatası:", err.message);
+    process.exit(1);
+  }
+};
 
-db.exec(`
-  CREATE TABLE IF NOT EXISTS applications (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    company TEXT NOT NULL,
-    position TEXT NOT NULL,
-    location TEXT,
-    salary TEXT,
-    job_url TEXT,
-    applied_at TEXT NOT NULL,
-    status TEXT NOT NULL DEFAULT 'Beklemede',
-    response_type TEXT,
-    response_note TEXT,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  );
-`);
-
-module.exports = db;
+module.exports = connectDB;
