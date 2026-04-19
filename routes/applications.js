@@ -1,11 +1,16 @@
 const express = require("express");
 const router = express.Router();
-const Application = require("../Application");
+const Application = require("../models/Application");
+const auth = require("../middleware/auth");
 
-// Tüm başvuruları getir
+router.use(auth);
+
+// Sadece giriş yapan kullanıcının başvurularını getir
 router.get("/", async (req, res) => {
   try {
-    const applications = await Application.find().sort({ created_at: -1 });
+    const applications = await Application.find({ userId: req.userId }).sort({
+      created_at: -1,
+    });
     res.json(applications);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -17,14 +22,14 @@ router.post("/", async (req, res) => {
   const { company, position, location, salary, job_url, applied_at, status } =
     req.body;
 
-  if (!company || !position || !applied_at) {
+  if (!company || !position || !applied_at)
     return res
       .status(400)
       .json({ error: "Şirket, pozisyon ve başvuru tarihi zorunludur." });
-  }
 
   try {
     const newApp = await Application.create({
+      userId: req.userId,
       company,
       position,
       location: location || "",
@@ -39,9 +44,8 @@ router.post("/", async (req, res) => {
   }
 });
 
-// Başvuruyu güncelle
+// Güncelle (sadece kendi kaydı)
 router.put("/:id", async (req, res) => {
-  const { id } = req.params;
   const {
     company,
     position,
@@ -53,10 +57,9 @@ router.put("/:id", async (req, res) => {
     response_type,
     response_note,
   } = req.body;
-
   try {
-    const updated = await Application.findByIdAndUpdate(
-      id,
+    const updated = await Application.findOneAndUpdate(
+      { _id: req.params.id, userId: req.userId },
       {
         company,
         position,
@@ -70,25 +73,21 @@ router.put("/:id", async (req, res) => {
       },
       { new: true, runValidators: true },
     );
-
-    if (!updated) {
-      return res.status(404).json({ error: "Başvuru bulunamadı." });
-    }
-
+    if (!updated) return res.status(404).json({ error: "Başvuru bulunamadı." });
     res.json(updated);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// Başvuruyu sil
+// Sil (sadece kendi kaydı)
 router.delete("/:id", async (req, res) => {
-  const { id } = req.params;
   try {
-    const deleted = await Application.findByIdAndDelete(id);
-    if (!deleted) {
-      return res.status(404).json({ error: "Başvuru bulunamadı." });
-    }
+    const deleted = await Application.findOneAndDelete({
+      _id: req.params.id,
+      userId: req.userId,
+    });
+    if (!deleted) return res.status(404).json({ error: "Başvuru bulunamadı." });
     res.json({ message: "Başvuru silindi." });
   } catch (err) {
     res.status(500).json({ error: err.message });
